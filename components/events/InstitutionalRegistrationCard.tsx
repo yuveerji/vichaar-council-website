@@ -111,7 +111,7 @@ export default function InstitutionalRegistrationCard({
   const [errorMessage, setErrorMessage] = useState("");
 
   const perStudentFee = tickets[0]?.price || 549;
-  const upiId = "thevichaarcouncil@okaxis";
+  const upiId = "9116502522@ptsbi";
 
   // Dynamic fee recalculation when totalStudents changes
   const handleStudentCountChange = (countStr: string) => {

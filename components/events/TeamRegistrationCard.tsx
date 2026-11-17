@@ -151,7 +151,7 @@ export default function TeamRegistrationCard({
     loadMe();
   }, []);
 
-  const upiId = "thevichaarcouncil@okaxis";
+  const upiId = "9116502522@ptsbi";
   const upiPayPayload = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=THE%20VICHAAR%20COUNCIL&am=1098&cu=INR&tn=SHABD%20AND%20SOCH%20TEAM%20REGISTRATION`;
 
   const copyToClipboard = () => {
