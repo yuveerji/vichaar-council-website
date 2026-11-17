@@ -259,6 +259,57 @@ export default function TeamRegistrationCard({
     setActiveSection(section);
   };
 
+  const handleCashfreePaymentFirst = async () => {
+    setErrorMessage("");
+
+    if (!validateSectionA()) { setActiveSection("A"); return; }
+    if (!validateSectionB()) { setActiveSection("B"); return; }
+    if (!validateSectionC()) { setActiveSection("C"); return; }
+
+    setIsSubmitting(true);
+
+    try {
+      const orderRes = await fetch("/api/payments/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId,
+          eventSlug,
+          ticketCategoryId: tickets[0]?.id || undefined,
+          fullName: `${formData.speaker1Name} & ${formData.speaker2Name} (${formData.teamName})`,
+          email: formData.speaker1Email,
+          phone: formData.speaker1Phone,
+          city: formData.speaker1City,
+          institution: formData.speaker1School,
+          amount: 1098,
+          notes: {
+            ...formData,
+            declarationConfirmed: true,
+            channel: "TEAM",
+            registrationType: "TEAM_DELEGATE",
+            paymentMethod: "CASHFREE_ONLINE",
+            submittedAt: new Date().toISOString()
+          }
+        })
+      });
+
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok || !orderData.paymentSessionId) {
+        throw new Error(orderData.error || "Failed to initialize secure Cashfree payment session for team.");
+      }
+
+      await initiateCashfreePayment({
+        paymentSessionId: orderData.paymentSessionId,
+        mode: "production",
+        redirectTarget: "_self"
+      });
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to initiate team payment.");
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
@@ -1100,23 +1151,55 @@ export default function TeamRegistrationCard({
               </div>
             )}
 
-            <div className="pt-4 flex items-center justify-between border-t border-charcoal/10">
+            <div className="pt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-charcoal/10">
               <button
                 type="button"
                 onClick={() => navigateTo("C")}
-                className="inline-flex items-center gap-2 text-charcoal/70 hover:text-charcoal text-xs font-bold uppercase tracking-wider py-2.5 px-4 rounded"
+                className="inline-flex items-center justify-center gap-2 text-charcoal/70 hover:text-charcoal text-xs font-bold uppercase tracking-wider py-2.5 px-4 rounded"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Back</span>
               </button>
-              <button
-                type="button"
-                onClick={() => navigateTo("E")}
-                className="inline-flex items-center gap-2 bg-navy hover:bg-slate text-warmwhite text-xs font-bold uppercase tracking-widest py-3 px-6 rounded transition-all group shadow-sm cursor-pointer"
-              >
-                <span>Proceed to Declarations</span>
-                <ArrowRight className="w-4 h-4 text-citrus group-hover:translate-x-1 transition-transform" />
-              </button>
+
+              {paymentMethod === "CASHFREE" ? (
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => navigateTo("E")}
+                    className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-charcoal/70 hover:text-navy px-3 py-2 order-2 sm:order-1"
+                  >
+                    <span>Declarations first →</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCashfreePaymentFirst}
+                    disabled={isSubmitting}
+                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm uppercase tracking-wider px-6 py-3.5 rounded transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer w-full sm:w-auto text-center order-1 sm:order-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Opening Cashfree...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-citrus" />
+                        <span>Pay ₹1,098 via Cashfree (Payment First, Then Continuation)</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigateTo("E")}
+                  className="inline-flex items-center justify-center gap-2 bg-navy hover:bg-slate text-warmwhite text-xs font-bold uppercase tracking-widest py-3 px-6 rounded transition-all group shadow-sm cursor-pointer"
+                >
+                  <span>Proceed to Declarations</span>
+                  <ArrowRight className="w-4 h-4 text-citrus group-hover:translate-x-1 transition-transform" />
+                </button>
+              )}
             </div>
           </div>
         )}

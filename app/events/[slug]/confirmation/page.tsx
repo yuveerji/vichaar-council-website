@@ -68,6 +68,10 @@ export default function ConfirmationPage({ params }: ConfirmationPageProps) {
       return;
     }
 
+    let attempts = 0;
+    const maxAttempts = 5;
+    let timer: NodeJS.Timeout;
+
     async function verifyOrder() {
       try {
         const res = await fetch("/api/payments/verify", {
@@ -83,17 +87,35 @@ export default function ConfirmationPage({ params }: ConfirmationPageProps) {
 
         if (data.status === "SUCCESS") {
           setReceiptData({ ...data.registration, isPending: false });
-        } else {
-          setError(data.message || `Payment status is currently ${data.status}.`);
+          setLoading(false);
+          return;
         }
+
+        // If order status is pending reconciliation, retry automatically
+        if (attempts < maxAttempts) {
+          attempts++;
+          timer = setTimeout(verifyOrder, 2000);
+          return;
+        }
+
+        setError(data.message || `Payment status is currently ${data.status}. If your account was debited, your delegate pass will activate automatically.`);
+        setLoading(false);
       } catch (err: any) {
+        if (attempts < maxAttempts) {
+          attempts++;
+          timer = setTimeout(verifyOrder, 2000);
+          return;
+        }
         setError(err.message || "An error occurred during payment verification.");
-      } finally {
         setLoading(false);
       }
     }
 
     verifyOrder();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [orderId, isFree, regNo, isPendingUtr, delegateName, amountParam, utrParam]);
 
   const handlePrint = () => {

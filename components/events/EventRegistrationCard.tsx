@@ -271,6 +271,63 @@ export default function EventRegistrationCard({
     setActiveSection(section);
   };
 
+  const handleCashfreePaymentFirst = async () => {
+    setErrorMessage("");
+
+    if (!validateSectionA()) {
+      setActiveSection("A");
+      return;
+    }
+    if (!validateSectionB()) {
+      setActiveSection("B");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const orderRes = await fetch("/api/payments/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId,
+          eventSlug,
+          ticketCategoryId: tickets[0]?.id || undefined,
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.whatsappNumber,
+          city: formData.city,
+          institution: formData.schoolName,
+          amount: 549,
+          notes: {
+            ...formData,
+            guardianConsent: true,
+            participantDeclaration: true,
+            channel: "INDIVIDUAL",
+            paymentMethod: "CASHFREE_ONLINE",
+            submittedAt: new Date().toISOString()
+          }
+        })
+      });
+
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok || !orderData.paymentSessionId) {
+        throw new Error(orderData.error || "Failed to initialize secure Cashfree payment session.");
+      }
+
+      // First payment will happen on Cashfree, then continuation
+      await initiateCashfreePayment({
+        paymentSessionId: orderData.paymentSessionId,
+        mode: "production",
+        redirectTarget: "_self"
+      });
+    } catch (err: any) {
+      setErrorMessage(err.message || "An unexpected error occurred. Please contact the Secretariat.");
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
@@ -1019,7 +1076,7 @@ export default function EventRegistrationCard({
                       <span>Instant Verification &amp; Pass Issuance</span>
                     </div>
                     <p className="text-[11px] text-charcoal/70 leading-relaxed">
-                      You do not need to manually enter a UTR number or upload transaction screenshots. Proceed to Section D and Section E to finalize consent and details; clicking the final submit button will immediately launch the secure Cashfree checkout interface.
+                      First the payment will happen on the secure Cashfree gateway via UPI, Cards, or NetBanking. Once payment is completed, continuation happens automatically: your verified digital delegate pass with scannable QR code is generated instantly.
                     </p>
                   </div>
                 </div>
@@ -1211,14 +1268,46 @@ export default function EventRegistrationCard({
                 <ArrowLeft className="w-4 h-4" />
                 <span>Back to Section B</span>
               </button>
-              <button
-                type="button"
-                onClick={() => navigateTo("D")}
-                className="inline-flex items-center justify-center gap-2 bg-navy hover:bg-navy/90 text-citrus font-bold text-xs uppercase tracking-wider px-6 py-3.5 rounded transition-all shadow-sm w-full sm:w-auto text-center cursor-pointer"
-              >
-                <span>Proceed to Consent &amp; Declaration</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+
+              {paymentMethod === "CASHFREE" ? (
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => navigateTo("D")}
+                    className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-charcoal/70 hover:text-navy px-3 py-2 order-2 sm:order-1"
+                  >
+                    <span>Fill declarations first →</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCashfreePaymentFirst}
+                    disabled={isSubmitting}
+                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm uppercase tracking-wider px-7 py-3.5 rounded transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer w-full sm:w-auto text-center order-1 sm:order-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Opening Cashfree...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-citrus" />
+                        <span>Pay ₹549 via Cashfree (Payment First, Then Continuation)</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigateTo("D")}
+                  className="inline-flex items-center justify-center gap-2 bg-navy hover:bg-navy/90 text-citrus font-bold text-xs uppercase tracking-wider px-6 py-3.5 rounded transition-all shadow-sm w-full sm:w-auto text-center cursor-pointer"
+                >
+                  <span>Proceed to Consent &amp; Declaration</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         )}
