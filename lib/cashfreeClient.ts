@@ -65,17 +65,35 @@ export async function initiateCashfreePayment({
   mode = "production",
   redirectTarget = "_self"
 }: CheckoutOptions) {
-  const Cashfree = await loadCashfree();
-  if (!Cashfree) {
-    throw new Error("Unable to initialize Cashfree Payment Gateway.");
+  const hostedUrl = `https://payments.cashfree.com/order/#${paymentSessionId}`;
+
+  try {
+    const Cashfree = await loadCashfree().catch(() => null);
+    if (!Cashfree) {
+      window.location.href = hostedUrl;
+      return;
+    }
+
+    const cashfreeInstance = Cashfree({ mode });
+    const result = await cashfreeInstance.checkout({
+      paymentSessionId,
+      redirectTarget
+    });
+
+    if (result?.error) {
+      console.warn("Cashfree SDK error, opening direct hosted payment page:", result.error);
+      window.location.href = hostedUrl;
+      return;
+    }
+
+    // Backup redirection if SDK did not navigate immediately
+    setTimeout(() => {
+      if (typeof window !== "undefined" && !window.location.href.includes("payments.cashfree.com")) {
+        window.location.href = hostedUrl;
+      }
+    }, 1200);
+  } catch (err) {
+    console.warn("Cashfree launch fallback to direct hosted URL:", err);
+    window.location.href = hostedUrl;
   }
-
-  const cashfreeInstance = Cashfree({
-    mode: mode
-  });
-
-  return cashfreeInstance.checkout({
-    paymentSessionId,
-    redirectTarget
-  });
 }

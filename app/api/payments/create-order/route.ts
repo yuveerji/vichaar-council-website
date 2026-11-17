@@ -214,11 +214,14 @@ export async function POST(req: NextRequest) {
       paymentStatus: "PENDING"
     }).catch((e) => console.error("Google Sheets sync error:", e));
 
+    const paymentUrl = `https://payments.cashfree.com/order/#${cfOrder.paymentSessionId}`;
+
     return NextResponse.json({
       success: true,
       isFree: false,
       orderId,
       paymentSessionId: cfOrder.paymentSessionId,
+      paymentUrl,
       cfOrderId: cfOrder.cfOrderId,
       registrationNumber,
       amount: payableAmount,

@@ -317,6 +317,11 @@ export default function EventRegistrationCard({
       }
 
       // First payment will happen on Cashfree, then continuation
+      if (orderData.paymentUrl) {
+        window.location.href = orderData.paymentUrl;
+        return;
+      }
+
       await initiateCashfreePayment({
         paymentSessionId: orderData.paymentSessionId,
         mode: "production",
@@ -388,7 +393,12 @@ export default function EventRegistrationCard({
           throw new Error(orderData.error || "Failed to initialize secure Cashfree payment session.");
         }
 
-        // 2. Open Cashfree Web SDK Checkout
+        // 2. Open Cashfree Checkout
+        if (orderData.paymentUrl) {
+          window.location.href = orderData.paymentUrl;
+          return;
+        }
+
         await initiateCashfreePayment({
           paymentSessionId: orderData.paymentSessionId,
           mode: "production",

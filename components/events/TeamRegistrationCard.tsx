@@ -299,6 +299,11 @@ export default function TeamRegistrationCard({
         throw new Error(orderData.error || "Failed to initialize secure Cashfree payment session for team.");
       }
 
+      if (orderData.paymentUrl) {
+        window.location.href = orderData.paymentUrl;
+        return;
+      }
+
       await initiateCashfreePayment({
         paymentSessionId: orderData.paymentSessionId,
         mode: "production",
@@ -354,7 +359,12 @@ export default function TeamRegistrationCard({
           throw new Error(orderData.error || "Failed to initialize secure Cashfree payment session for team.");
         }
 
-        // Launch Cashfree PG Checkout
+        // Launch Cashfree Checkout
+        if (orderData.paymentUrl) {
+          window.location.href = orderData.paymentUrl;
+          return;
+        }
+
         await initiateCashfreePayment({
           paymentSessionId: orderData.paymentSessionId,
           mode: "production",
