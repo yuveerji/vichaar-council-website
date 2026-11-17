@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, AtSign, Mail, Phone, Calendar, Building2, Lock, CheckCircle2, XCircle, Loader2, ArrowRight } from "lucide-react";
+import { User, AtSign, Mail, Phone, Calendar, Building2, Lock, CheckCircle2, XCircle, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import InstitutionalDatePicker from "@/components/ui/InstitutionalDatePicker";
 import FirebaseGoogleButton from "@/components/ui/FirebaseGoogleButton";
 
@@ -20,6 +20,8 @@ export default function ParticipantRegisterPage() {
   const [institution, setInstitution] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   // Username validation state
@@ -322,14 +324,27 @@ export default function ParticipantRegisterPage() {
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warmwhite/40" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min 8 characters"
-                className="w-full pl-10 pr-4 py-3 bg-[#080E1A] border border-white/15 rounded-xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-citrus transition-colors"
+                className="w-full pl-10 pr-11 py-3 bg-[#080E1A] border border-white/15 rounded-xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-citrus transition-colors"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-warmwhite/40 hover:text-citrus transition-colors focus:outline-none"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
 
@@ -340,14 +355,27 @@ export default function ParticipantRegisterPage() {
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warmwhite/40" />
               <input
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 required
                 minLength={8}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat password"
-                className="w-full pl-10 pr-4 py-3 bg-[#080E1A] border border-white/15 rounded-xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-citrus transition-colors"
+                className="w-full pl-10 pr-11 py-3 bg-[#080E1A] border border-white/15 rounded-xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-citrus transition-colors"
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                title={showConfirmPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-warmwhite/40 hover:text-citrus transition-colors focus:outline-none"
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -6,11 +6,13 @@ import Image from "next/image";
 import Link from "next/link";
 import VichaarLogo from "@/components/VichaarLogo";
 import FirebaseGoogleButton from "@/components/ui/FirebaseGoogleButton";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("admin@thevichaarcouncil.in");
   const [password, setPassword] = useState("CouncilAdmin@2026!");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -103,13 +105,28 @@ export default function AdminLoginPage() {
             <label className="block text-[11px] font-bold uppercase tracking-wider text-mutedgrey mb-1">
               Password
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-navy-border bg-navy-deep px-3.5 py-2.5 text-xs text-warmwhite focus:border-citrus focus:outline-none rounded-xs"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border border-navy-border bg-navy-deep px-3.5 pr-10 py-2.5 text-xs text-warmwhite focus:border-citrus focus:outline-none rounded-xs"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-mutedgrey hover:text-citrus transition-colors focus:outline-none"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
           </div>
 
           <button
