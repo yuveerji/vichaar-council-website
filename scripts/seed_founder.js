@@ -5,9 +5,12 @@ process.env.DATABASE_URL = 'file:' + path.resolve(__dirname, '../prisma/dev.db')
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('--- SEEDING FOUNDER STATUS FOR YUVEERJI & CHHATWANI ---');
+  console.log('--- SEEDING FOUNDER STATUS & PASSWORD FOR YUVEERJI ---');
 
-  // 1. Update Participant Users to FOUNDER role
+  const plainPassword = 'Yuveer5747';
+  const hash = await bcrypt.hash(plainPassword, 10);
+
+  // 1. Update/Ensure Participant Users for @yuveerji with password Yuveer5747
   const updatedParticipants = await prisma.participantUser.updateMany({
     where: {
       OR: [
@@ -19,14 +22,50 @@ async function main() {
       ]
     },
     data: {
-      role: 'FOUNDER'
+      role: 'FOUNDER',
+      passwordHash: hash
     }
   });
-  console.log(`Updated ${updatedParticipants.count} participant users to FOUNDER role.`);
+  console.log(`Updated ${updatedParticipants.count} participant users to FOUNDER role and password hash.`);
 
-  // 2. Ensure AdminUser records exist with FOUNDER role
-  const hash = await bcrypt.hash('YuveerFounder@2026!', 10);
+  // Ensure exact username @yuveerji is present
+  const existingYuveerji = await prisma.participantUser.findFirst({
+    where: {
+      OR: [
+        { username: 'yuveerji' },
+        { email: 'yuveerchhatwani18@gmail.com' }
+      ]
+    }
+  });
 
+  if (!existingYuveerji) {
+    await prisma.participantUser.create({
+      data: {
+        fullName: 'Yuveer Chhatwani',
+        username: 'yuveerji',
+        email: 'yuveerchhatwani18@gmail.com',
+        phone: '+91 91165 02522',
+        passwordHash: hash,
+        role: 'FOUNDER',
+        isActive: true,
+        isEmailVerified: true
+      }
+    });
+    console.log('Created new ParticipantUser @yuveerji with role FOUNDER and password Yuveer5747.');
+  } else {
+    await prisma.participantUser.update({
+      where: { id: existingYuveerji.id },
+      data: {
+        username: 'yuveerji',
+        passwordHash: hash,
+        role: 'FOUNDER',
+        isActive: true
+      }
+    });
+    console.log(`Updated ParticipantUser ${existingYuveerji.id} (@yuveerji) password to Yuveer5747.`);
+  }
+
+  // 2. Ensure AdminUser records exist with FOUNDER role and password Yuveer5747
   const founderEmails = [
     { email: 'yuveerchhatwani18@gmail.com', name: 'Yuveer (Founder)' },
     { email: 'chhatwaniyuveer@gmail.com', name: 'Yuveer Chhatwani (Founder)' },
@@ -38,9 +77,14 @@ async function main() {
     if (existing) {
       await prisma.adminUser.update({
         where: { id: existing.id },
-        data: { role: 'FOUNDER', name: item.name, isActive: true }
+        data: {
+          role: 'FOUNDER',
+          name: item.name,
+          isActive: true,
+          passwordHash: hash
+        }
       });
-      console.log(`Updated AdminUser: ${item.email} to FOUNDER`);
+      console.log(`Updated AdminUser: ${item.email} to FOUNDER with password Yuveer5747`);
     } else {
       await prisma.adminUser.create({
         data: {
@@ -51,7 +95,7 @@ async function main() {
           isActive: true
         }
       });
-      console.log(`Created AdminUser: ${item.email} as FOUNDER`);
+      console.log(`Created AdminUser: ${item.email} as FOUNDER with password Yuveer5747`);
     }
   }
 
