@@ -29,8 +29,11 @@ export async function POST(request: NextRequest) {
       message: "Authentication successful.",
       user
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error logging in participant:", error);
-    return NextResponse.json({ error: "Authentication failed. Please try again." }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || "Authentication failed. Please try again." },
+      { status: 500 }
+    );
   }
 }

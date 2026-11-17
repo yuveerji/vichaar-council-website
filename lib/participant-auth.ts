@@ -5,6 +5,7 @@ import prisma from "@/lib/db";
 
 export const PARTICIPANT_SESSION_COOKIE = "my_vichaar_session";
 const SESSION_EXPIRY_DAYS = 30;
+const AUTH_SECRET = process.env.AUTH_SECRET || "vichaar-council-super-secret-auth-key-2026-very-secure";
 
 export function sanitizeUsername(raw: string): string {
   return raw.trim().replace(/^@+/, "").toLowerCase();
@@ -25,18 +26,28 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
   return bcrypt.compare(plain, hash);
 }
 
+function signSessionToken(participantId: string, expiresAt: Date): string {
+  const payload = `${participantId}.${expiresAt.getTime()}`;
+  const signature = crypto.createHmac("sha256", AUTH_SECRET).update(payload).digest("hex");
+  return `${payload}.${signature}`;
+}
+
 export async function createParticipantSession(participantId: string): Promise<string> {
-  const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + SESSION_EXPIRY_DAYS);
+  const token = signSessionToken(participantId, expiresAt);
 
-  await prisma.participantSession.create({
-    data: {
-      token,
-      participantId,
-      expiresAt
-    }
-  });
+  try {
+    await prisma.participantSession.create({
+      data: {
+        token,
+        participantId,
+        expiresAt
+      }
+    });
+  } catch (err) {
+    console.warn("[participant-auth] Could not persist session record to DB (stateless fallback active):", err);
+  }
 
   const cookieStore = await cookies();
   cookieStore.set(PARTICIPANT_SESSION_COOKIE, token, {
@@ -59,38 +70,83 @@ export async function getCurrentParticipant() {
       return null;
     }
 
-    const session = await prisma.participantSession.findUnique({
-      where: { token },
-      include: {
-        participant: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            email: true,
-            phone: true,
-            dateOfBirth: true,
-            institution: true,
-            avatarUrl: true,
-            isEmailVerified: true,
-            role: true,
-            isActive: true,
-            createdAt: true,
-            updatedAt: true
+    // 1. Check stateless cryptographic HMAC signature
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const [participantId, expiryStr, signature] = parts;
+      const expectedSignature = crypto
+        .createHmac("sha256", AUTH_SECRET)
+        .update(`${participantId}.${expiryStr}`)
+        .digest("hex");
+
+      const expiryTime = Number(expiryStr);
+      if (signature === expectedSignature && !isNaN(expiryTime) && expiryTime > Date.now()) {
+        try {
+          const participant = await prisma.participantUser.findUnique({
+            where: { id: participantId },
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              email: true,
+              phone: true,
+              dateOfBirth: true,
+              institution: true,
+              avatarUrl: true,
+              isEmailVerified: true,
+              role: true,
+              isActive: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          });
+
+          if (participant && participant.isActive) {
+            return participant;
           }
+        } catch (dbErr) {
+          console.error("[participant-auth] Error querying participant by ID:", dbErr);
         }
       }
-    });
-
-    if (!session || session.expiresAt < new Date()) {
-      return null;
     }
 
-    if (!session.participant.isActive) {
+    // 2. Fallback to database session lookup for legacy tokens
+    try {
+      const session = await prisma.participantSession.findUnique({
+        where: { token },
+        include: {
+          participant: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              email: true,
+              phone: true,
+              dateOfBirth: true,
+              institution: true,
+              avatarUrl: true,
+              isEmailVerified: true,
+              role: true,
+              isActive: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          }
+        }
+      });
+
+      if (!session || session.expiresAt < new Date()) {
+        return null;
+      }
+
+      if (!session.participant.isActive) {
+        return null;
+      }
+
+      return session.participant;
+    } catch {
       return null;
     }
-
-    return session.participant;
   } catch (error) {
     console.error("Error retrieving current participant:", error);
     return null;
@@ -98,12 +154,18 @@ export async function getCurrentParticipant() {
 }
 
 export async function logoutParticipant() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(PARTICIPANT_SESSION_COOKIE)?.value;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(PARTICIPANT_SESSION_COOKIE)?.value;
 
-  if (token) {
-    await prisma.participantSession.deleteMany({ where: { token } });
-    cookieStore.delete(PARTICIPANT_SESSION_COOKIE);
+    if (token) {
+      try {
+        await prisma.participantSession.deleteMany({ where: { token } });
+      } catch {}
+      cookieStore.delete(PARTICIPANT_SESSION_COOKIE);
+    }
+  } catch (error) {
+    console.error("Error in logoutParticipant:", error);
   }
 }
 
@@ -130,10 +192,15 @@ export async function verifyParticipantCredentials(identifier: string, passwordP
     return null;
   }
 
-  await prisma.participantUser.update({
-    where: { id: participant.id },
-    data: { lastLoginAt: new Date() }
-  });
+  // Best-effort update of lastLoginAt (safely ignored if SQLite is in read-only mode)
+  try {
+    await prisma.participantUser.update({
+      where: { id: participant.id },
+      data: { lastLoginAt: new Date() }
+    });
+  } catch (err) {
+    console.warn("[participant-auth] Could not update lastLoginAt (continuing auth):", err);
+  }
 
   return {
     id: participant.id,

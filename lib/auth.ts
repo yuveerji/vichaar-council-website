@@ -6,6 +6,7 @@ import { getCurrentParticipant, PARTICIPANT_SESSION_COOKIE } from "@/lib/partici
 
 const SESSION_COOKIE_NAME = "tvc_admin_session";
 const SESSION_EXPIRY_DAYS = 7;
+const AUTH_SECRET = process.env.AUTH_SECRET || "vichaar-council-super-secret-auth-key-2026-very-secure";
 
 // Default foundational admin identifiers
 const DEFAULT_ADMIN_WHITELIST = [
@@ -213,18 +214,28 @@ export async function removeAdminFromWhitelist(
   return { success: true, message: `Removed ${clean} from authorized admin list.` };
 }
 
+function signAdminSessionToken(userId: string, expiresAt: Date): string {
+  const payload = `${userId}.${expiresAt.getTime()}`;
+  const signature = crypto.createHmac("sha256", AUTH_SECRET).update(payload).digest("hex");
+  return `${payload}.${signature}`;
+}
+
 export async function createAdminSession(userId: string): Promise<string> {
-  const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + SESSION_EXPIRY_DAYS);
+  const token = signAdminSessionToken(userId, expiresAt);
 
-  await prisma.adminSession.create({
-    data: {
-      token,
-      userId,
-      expiresAt
-    }
-  });
+  try {
+    await prisma.adminSession.create({
+      data: {
+        token,
+        userId,
+        expiresAt
+      }
+    });
+  } catch (err) {
+    console.warn("[admin-auth] Could not persist session to database (stateless fallback active):", err);
+  }
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
@@ -247,16 +258,45 @@ export async function getCurrentAdmin() {
       return null;
     }
 
-    const session = await prisma.adminSession.findUnique({
-      where: { token },
-      include: { user: true }
-    });
+    // 1. Check stateless cryptographic signature
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const [userId, expiryStr, signature] = parts;
+      const expectedSignature = crypto
+        .createHmac("sha256", AUTH_SECRET)
+        .update(`${userId}.${expiryStr}`)
+        .digest("hex");
 
-    if (!session || session.expiresAt < new Date()) {
-      return null;
+      const expiryTime = Number(expiryStr);
+      if (signature === expectedSignature && !isNaN(expiryTime) && expiryTime > Date.now()) {
+        try {
+          const user = await prisma.adminUser.findUnique({
+            where: { id: userId }
+          });
+          if (user && user.isActive) {
+            return user;
+          }
+        } catch (dbErr) {
+          console.error("[admin-auth] Error querying admin user by ID:", dbErr);
+        }
+      }
     }
 
-    return session.user;
+    // 2. Fallback to database session lookup
+    try {
+      const session = await prisma.adminSession.findUnique({
+        where: { token },
+        include: { user: true }
+      });
+
+      if (!session || session.expiresAt < new Date()) {
+        return null;
+      }
+
+      return session.user;
+    } catch {
+      return null;
+    }
   } catch (error) {
     console.error("Error retrieving current admin:", error);
     return null;
@@ -392,10 +432,14 @@ export async function verifyAdminCredentials(identifier: string, passwordPlain: 
   if (adminUser && adminUser.isActive) {
     const isValid = await bcrypt.compare(passwordPlain, adminUser.passwordHash);
     if (isValid) {
-      await prisma.adminUser.update({
-        where: { id: adminUser.id },
-        data: { lastLoginAt: new Date() }
-      });
+      try {
+        await prisma.adminUser.update({
+          where: { id: adminUser.id },
+          data: { lastLoginAt: new Date() }
+        });
+      } catch (err) {
+        console.warn("[admin-auth] Could not update admin lastLoginAt (continuing auth):", err);
+      }
       return adminUser;
     }
   }
@@ -418,21 +462,33 @@ export async function verifyAdminCredentials(identifier: string, passwordPlain: 
         });
 
         if (!linkedAdmin) {
-          linkedAdmin = await prisma.adminUser.create({
-            data: {
+          try {
+            linkedAdmin = await prisma.adminUser.create({
+              data: {
+                email: participant.email,
+                name: participant.fullName,
+                passwordHash: participant.passwordHash,
+                role: participant.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : "CONTENT_ADMIN",
+                isActive: true,
+                lastLoginAt: new Date()
+              }
+            });
+          } catch {
+            return {
+              id: participant.id,
               email: participant.email,
               name: participant.fullName,
-              passwordHash: participant.passwordHash,
               role: participant.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : "CONTENT_ADMIN",
-              isActive: true,
-              lastLoginAt: new Date()
-            }
-          });
+              isActive: true
+            } as any;
+          }
         } else {
-          await prisma.adminUser.update({
-            where: { id: linkedAdmin.id },
-            data: { lastLoginAt: new Date(), isActive: true }
-          });
+          try {
+            await prisma.adminUser.update({
+              where: { id: linkedAdmin.id },
+              data: { lastLoginAt: new Date(), isActive: true }
+            });
+          } catch {}
         }
 
         return linkedAdmin;
