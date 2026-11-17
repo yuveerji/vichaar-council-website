@@ -1,0 +1,257 @@
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;1,6..96,400;1,6..96,500;1,6..96,600;1,6..96,700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Manrope:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg-parchment: #EAD8C3;
+  --text-charcoal: #20232A;
+  --accent-citrus: #FFA62B;
+  --accent-seabreeze: #8CC5FF;
+  --accent-amalfi: #2E5AA7;
+  --accent-gelato: #F8E6A0;
+  --accent-crimson: #B3191B;
+  --accent-antiquegold: #C9A255;
+  --navy-deep: #070E1A;
+  --obsidian-black: #03060C;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
+body {
+  margin: 0;
+  background-color: #FFFDF8;
+  color: #20232A;
+  font-family: var(--font-sans), 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent automatic iOS Safari zooming on focus for inputs and selects */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Fluid responsive text wrap and word break helpers */
+.text-balance {
+  text-wrap: balance;
+}
+
+.break-words-safe {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Accessible minimum touch target utility */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Luxury Editorial Typography System */
+/* 01. Primary Display — Bodoni Moda */
+.font-display {
+  font-family: var(--font-display), 'Bodoni Moda', 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+/* 02. Editorial Italic & Quotes — Cormorant Garamond */
+.font-editorial {
+  font-family: var(--font-editorial), 'Cormorant Garamond', Georgia, serif;
+}
+
+/* 03. Body & Navigation & Buttons — Manrope */
+.font-sans,
+.font-sans-ui {
+  font-family: var(--font-sans), 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* 04. Hindi Typography — Noto Serif Devanagari */
+.font-hindi {
+  font-family: var(--font-hindi), 'Noto Serif Devanagari', Georgia, serif;
+}
+
+/* Royal Display Alias */
+.font-royal {
+  font-family: var(--font-display), 'Bodoni Moda', 'Cinzel', Georgia, serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #080B10;
+}
+::-webkit-scrollbar-thumb {
+  background: #20232A;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FFA62B;
+}
+
+::selection {
+  background: #B51F24;
+  color: #FFFDF8;
+}
+
+/* Containers & Shells */
+.container-shell {
+  width: min(1320px, calc(100% - 48px));
+  margin-inline: auto;
+}
+
+@media (max-width: 640px) {
+  .container-shell {
+    width: calc(100% - 32px);
+  }
+}
+
+@media (max-width: 380px) {
+  .container-shell {
+    width: calc(100% - 20px);
+  }
+}
+
+/* Institutional Design Details */
+.eyebrow {
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: var(--font-sans), 'Manrope', sans-serif;
+}
+
+.display-title {
+  font-family: var(--font-display), 'Bodoni Moda', 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+  line-height: 1.08;
+}
+
+.editorial-quote {
+  font-family: var(--font-editorial), 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.red-rule {
+  height: 2px;
+  width: 48px;
+  background-color: #B51F24;
+}
+
+.citrus-rule {
+  height: 2px;
+  width: 48px;
+  background-color: #FFA62B;
+}
+
+/* Nav Link Underline Effect */
+.nav-link {
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 0;
+  height: 2px;
+  background-color: #B51F24;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+  width: 100%;
+}
+
+/* Subtle Hero & Architecture Grids */
+.hero-grid {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.parchment-texture {
+  background-color: #FFF5E7;
+  background-image: radial-gradient(#E8DAC2 0.75px, transparent 0.75px);
+  background-size: 16px 16px;
+}
+
+/* Editorial Card Lift */
+.card-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px -10px rgba(16, 24, 39, 0.08);
+  border-color: #B51F24;
+}
+
+/* Badge Styles for All 4 Official Accent Colors + Crimson */
+.badge-citrus {
+  background-color: #FFF4E3;
+  color: #B26A00;
+  border: 1px solid #FFA62B44;
+}
+
+.badge-seabreeze {
+  background-color: #EBF5FF;
+  color: #1E3D75;
+  border: 1px solid #8CC5FF66;
+}
+
+.badge-amalfi {
+  background-color: #E1EFFF;
+  color: #1E3D75;
+  border: 1px solid #2E5AA744;
+}
+
+.badge-gelato {
+  background-color: #FDF9EA;
+  color: #6B5400;
+  border: 1px solid #F8E6A088;
+}
+
+.badge-crimson {
+  background-color: #FDF0F0;
+  color: #B51F24;
+  border: 1px solid #B51F2433;
+}

@@ -1,0 +1,366 @@
+// Prisma Schema for The Vichaar Council Institutional Website
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  name         String
+  role         String         @default("CONTENT_ADMIN") // SUPER_ADMIN, CONTENT_ADMIN, EVENT_ADMIN, FINANCE_ADMIN, EDITOR
+  isActive     Boolean        @default(true)
+  lastLoginAt  DateTime?
+  sessions     AdminSession[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model AdminSession {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+}
+
+model AuditLog {
+  id        String     @id @default(uuid())
+  userId    String?
+  user      AdminUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String     // e.g., "CREATE_EVENT", "REFUND_PAYMENT", "PUBLISH_ARTICLE"
+  entity    String     // "Event", "PaymentOrder", "Publication", etc.
+  entityId  String?
+  details   String?    // JSON or text description
+  ipAddress String?
+  createdAt DateTime   @default(now())
+}
+
+model EventCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  events      Event[]
+  createdAt   DateTime @default(now())
+}
+
+model Event {
+  id               String           @id @default(uuid())
+  title            String
+  slug             String           @unique
+  summary          String
+  description      String
+  categoryId       String?
+  category         EventCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryName     String?          // e.g. "Public Discourse", "Debate Forum", "Parliamentary Simulation"
+  format           String           @default("IN_PERSON") // IN_PERSON, ONLINE, HYBRID
+  venue            String           @default("Vichaar Council Chamber, New Delhi")
+  city             String           @default("New Delhi")
+  startDate        DateTime
+  endDate          DateTime?
+  coverImage       String           @default("/assets/homepage-background.png")
+  status           String           @default("REGISTRATION_OPEN") // UPCOMING, REGISTRATION_OPEN, CLOSING_SOON, SOLD_OUT, REGISTRATION_CLOSED, COMPLETED, ARCHIVED
+  isPublished      Boolean          @default(true)
+  isFeatured       Boolean          @default(false)
+  capacity         Int              @default(150)
+  registeredCount  Int              @default(0)
+  agendaJson       String?          // JSON Array of timeline items [{ time, title, description, speaker }]
+  speakersJson     String?          // JSON Array [{ name, title, bio, photoUrl }]
+  faqsJson         String?          // JSON Array [{ question, answer }]
+  contactEmail     String           @default("events@thevichaarcouncil.in")
+  tickets          TicketCategory[]
+  registrations    Registration[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model TicketCategory {
+  id            String         @id @default(uuid())
+  eventId       String
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name          String         // e.g. "Standard Delegate", "Youth Scholar", "Observer"
+  price         Float          @default(0.0) // 0 for Free
+  capacity      Int            @default(100)
+  soldCount     Int            @default(0)
+  description   String?
+  isActive      Boolean        @default(true)
+  registrations Registration[]
+  createdAt     DateTime       @default(now())
+}
+
+model Registration {
+  id                 String          @id @default(uuid())
+  registrationNumber String          @unique // e.g. "TVC-2026-94812"
+  eventId            String
+  event              Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketCategoryId   String
+  ticketCategory     TicketCategory  @relation(fields: [ticketCategoryId], references: [id])
+  fullName           String
+  email              String
+  phone              String
+  city               String
+  institution        String?
+  notes              String?
+  paymentStatus      String          @default("PENDING") // PENDING, SUCCESS, FAILED, CANCELLED, REFUNDED
+  totalAmount        Float           @default(0.0)
+  currency           String          @default("INR")
+  paymentOrderId     String?
+  paymentOrder       PaymentOrder?
+  checkInStatus      Boolean         @default(false)
+  participantId      String?
+  participant        ParticipantUser? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model ParticipantUser {
+  id                      String                    @id @default(uuid())
+  fullName                String
+  username                String                    @unique // e.g. "yuveer_27" (without @ stored)
+  email                   String                    @unique
+  phone                   String?
+  dateOfBirth             String?
+  institution             String?
+  passwordHash            String
+  avatarUrl               String?
+  isEmailVerified         Boolean                   @default(false)
+  emailVerificationToken  String?
+  emailVerificationExpires DateTime?
+  resetPasswordToken      String?
+  resetPasswordExpires    DateTime?
+  role                    String                    @default("PARTICIPANT")
+  isActive                Boolean                   @default(true)
+  lastLoginAt             DateTime?
+  sessions                ParticipantSession[]
+  registrations           Registration[]
+  notifications           ParticipantNotification[]
+  submissions             ParticipantSubmission[]
+  certificates            ParticipantCertificate[]
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+}
+
+model ParticipantSession {
+  id            String          @id @default(uuid())
+  token         String          @unique
+  participantId String
+  participant   ParticipantUser @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  expiresAt     DateTime
+  createdAt     DateTime        @default(now())
+}
+
+model ParticipantNotification {
+  id            String          @id @default(uuid())
+  participantId String
+  participant   ParticipantUser @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  title         String
+  message       String
+  type          String          @default("SYSTEM") // SYSTEM, EVENT, REGISTRATION, CERTIFICATE
+  link          String?
+  isRead        Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+}
+
+model ParticipantSubmission {
+  id            String          @id @default(uuid())
+  participantId String
+  participant   ParticipantUser @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  title         String
+  category      String          // Policy Brief, Research Paper, Position Paper, Op-Ed
+  abstract      String
+  fileUrl       String?
+  status        String          @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, ACCEPTED, REVISION_REQUESTED
+  feedback      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model ParticipantCertificate {
+  id                String          @id @default(uuid())
+  certificateNumber String          @unique // e.g. "TVC-CERT-2026-081"
+  participantId     String
+  participant       ParticipantUser @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  eventId           String?
+  eventTitle        String
+  issueDate         DateTime        @default(now())
+  title             String          // "Certificate of Participation", "Certificate of Merit"
+  description       String?
+  verificationUrl   String?
+  downloadUrl       String?
+  createdAt         DateTime        @default(now())
+}
+
+model PaymentOrder {
+  id               String           @id @default(uuid())
+  orderId          String           @unique // Cashfree order ID e.g. "order_tvc_173176..."
+  registrationId   String           @unique
+  registration     Registration     @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  amount           Float
+  currency         String           @default("INR")
+  status           String           @default("CREATED") // CREATED, PENDING, SUCCESS, FAILED, CANCELLED, EXPIRED, REFUNDED
+  paymentSessionId String?
+  cfOrderId        String?
+  paymentMethod    String?          // UPI, NETBANKING, CARD, etc.
+  paymentTime      DateTime?
+  bankReference    String?
+  rawResponseJson  String?
+  attempts         PaymentAttempt[]
+  refunds          Refund[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model PaymentAttempt {
+  id             String       @id @default(uuid())
+  orderId        String
+  paymentOrder   PaymentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  cfPaymentId    String?
+  paymentMethod  String?
+  paymentStatus  String       // SUCCESS, FAILED, PENDING
+  amount         Float
+  rawPayloadJson String?
+  createdAt      DateTime     @default(now())
+}
+
+model PaymentWebhook {
+  id          String   @id @default(uuid())
+  eventId     String?  // Cashfree event type / transfer id
+  webhookType String
+  payloadJson String
+  signature   String?
+  isVerified  Boolean  @default(false)
+  processedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model Refund {
+  id           String       @id @default(uuid())
+  refundId     String       @unique // e.g. "rfnd_tvc_..."
+  orderId      String
+  paymentOrder PaymentOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount       Float
+  reason       String
+  status       String       @default("PENDING") // PENDING, SUCCESS, FAILED
+  cfRefundId   String?
+  initiatedBy  String?      // admin user id or email
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Initiative {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  category    String   // "Public Discourse", "Debate & Rhetoric", "Diplomacy", "Research Labs"
+  summary     String
+  content     String
+  coverImage  String   @default("/assets/homepage-background.png")
+  status      String   @default("ACTIVE") // ACTIVE, UPCOMING, ARCHIVED
+  orderIndex  Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PublicationCategory {
+  id           String        @id @default(uuid())
+  name         String        @unique
+  slug         String        @unique
+  description  String?
+  publications Publication[]
+  createdAt    DateTime      @default(now())
+}
+
+model Publication {
+  id              String               @id @default(uuid())
+  title           String
+  slug            String               @unique
+  subtitle        String?
+  categoryId      String?
+  category        PublicationCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryName    String               @default("Policy Analysis") // Editorial, Opinion, Research, Policy Analysis
+  authorName      String
+  authorRole      String               @default("Fellow, The Vichaar Council")
+  authorBio       String?
+  coverImage      String               @default("/assets/homepage-background.png")
+  readTimeMinutes Int                  @default(6)
+  content         String               // Markdown or Rich Text
+  citationsJson   String?              // Array of reference strings
+  status          String               @default("PUBLISHED") // DRAFT, UNDER_REVIEW, APPROVED, PUBLISHED, ARCHIVED
+  publishedAt     DateTime             @default(now())
+  isFeatured      Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model LeadershipProfile {
+  id          String   @id @default(uuid())
+  fullName    String
+  roleTitle   String   // e.g. "President", "Dean of Academic Research", "Director of Diplomacy"
+  category    String   @default("EXECUTIVE_BOARD") // EXECUTIVE_BOARD, ACADEMIC_COUNCIL, SECRETARIAT, ADVISORY
+  bio         String
+  orderIndex  Int      @default(0)
+  avatarUrl   String?
+  linkedinUrl String?
+  twitterUrl  String?
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model GalleryAlbum {
+  id          String         @id @default(uuid())
+  title       String
+  slug        String         @unique
+  description String?
+  coverImage  String?
+  images      GalleryImage[]
+  createdAt   DateTime       @default(now())
+}
+
+model GalleryImage {
+  id          String        @id @default(uuid())
+  albumId     String?
+  album       GalleryAlbum? @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  title       String
+  category    String        @default("CONFERENCES") // DEBATES, CONFERENCES, DIPLOMACY, DISCOURSE, COMMUNITY
+  caption     String?
+  imageUrl    String
+  eventTag    String?
+  date        String?
+  orderIndex  Int           @default(0)
+  isPublished Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+}
+
+model ContactEnquiry {
+  id            String   @id @default(uuid())
+  name          String
+  email         String
+  phone         String?
+  subject       String
+  category      String   @default("GENERAL") // GENERAL, COLLABORATION, EVENT_PARTNERSHIP, MEDIA, GRIEVANCE
+  message       String
+  consentAgreed Boolean  @default(true)
+  status        String   @default("NEW") // NEW, IN_REVIEW, REPLIED, ARCHIVED
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SiteSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
