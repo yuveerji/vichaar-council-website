@@ -6,6 +6,10 @@
 
 :root {
   color-scheme: light;
+  --font-display: 'Bodoni Moda', 'Playfair Display', Georgia, serif;
+  --font-editorial: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-hindi: 'Noto Serif Devanagari', serif;
   --bg-parchment: #EAD8C3;
   --text-charcoal: #20232A;
   --accent-citrus: #FFA62B;
