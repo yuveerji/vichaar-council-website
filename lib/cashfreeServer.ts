@@ -263,7 +263,7 @@ export async function createCashfreePaymentLink(
         ? `cust_${payload.customer_details.customer_email.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}`
         : `cust_${cleanPhone}`;
 
-      const host = originUrl || 'https://zenvitra.xyz';
+      const host = originUrl || process.env.NEXT_PUBLIC_SITE_URL || 'https://the-vichaar-council.vercel.app';
       const orderPayload: CashfreeOrderPayload = {
         order_id: orderId,
         order_amount: cleanPayload.link_amount,
@@ -271,7 +271,7 @@ export async function createCashfreePaymentLink(
         customer_details: {
           customer_id: customerId,
           customer_name: payload.customer_details.customer_name || 'Event Delegate',
-          customer_email: payload.customer_details.customer_email || 'delegate@zenvitra.xyz',
+          customer_email: payload.customer_details.customer_email || 'delegate@thevichaarcouncil.in',
           customer_phone: cleanPhone,
         },
         order_meta: {
@@ -332,10 +332,11 @@ export async function getCashfreePaymentLink(linkId: string): Promise<CashfreePa
     const orderId = `ord_${linkId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 45)}`;
     try {
       const order = await getCashfreeOrder(orderId);
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://the-vichaar-council.vercel.app';
       return {
         cf_link_id: order.cf_order_id,
         link_id: linkId,
-        link_url: `https://zenvitra.xyz/pay/${encodeURIComponent(linkId)}`,
+        link_url: `${siteUrl}/pay/${encodeURIComponent(linkId)}`,
         link_status: order.order_status === 'PAID' ? 'PAID' : 'ACTIVE',
         link_amount: order.order_amount,
         link_amount_paid: order.order_status === 'PAID' ? order.order_amount : 0,

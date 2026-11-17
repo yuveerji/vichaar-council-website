@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import VichaarLogo from "@/components/VichaarLogo";
+import { initiateCashfreePayment } from "@/lib/cashfreeClient";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Building2,
@@ -101,6 +102,7 @@ export default function InstitutionalRegistrationCard({
   });
 
   const [copiedUpi, setCopiedUpi] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"CASHFREE" | "MANUAL_UTR">("CASHFREE");
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -233,13 +235,15 @@ export default function InstitutionalRegistrationCard({
   };
 
   const validateSectionD = () => {
-    if (!formData.transactionId.trim()) {
-      setErrorMessage("Please enter the Transaction ID / UTR Number in Question 17.");
-      return false;
-    }
-    if (!formData.paymentScreenshot) {
-      setErrorMessage("Please upload the consolidated payment screenshot in Question 18.");
-      return false;
+    if (paymentMethod === "MANUAL_UTR") {
+      if (!formData.transactionId.trim()) {
+        setErrorMessage("Please enter the Transaction ID / UTR Number in Question 17.");
+        return false;
+      }
+      if (!formData.paymentScreenshot) {
+        setErrorMessage("Please upload the consolidated payment screenshot in Question 18.");
+        return false;
+      }
     }
     return true;
   };
@@ -274,13 +278,56 @@ export default function InstitutionalRegistrationCard({
     setIsSubmitting(true);
 
     try {
+      const calculatedAmount = (parseInt(formData.totalStudents, 10) || 1) * perStudentFee;
+      const payableAmount = Number(formData.feePaid) || calculatedAmount;
+
+      if (paymentMethod === "CASHFREE") {
+        // Create Cashfree Order for Institutional Delegation
+        const orderRes = await fetch("/api/payments/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId,
+            eventSlug,
+            ticketCategoryId: tickets[0]?.id || undefined,
+            fullName: formData.schoolName,
+            email: formData.coordinatorEmail || formData.officialSchoolEmail,
+            phone: formData.coordinatorPhone,
+            city: formData.city,
+            institution: formData.schoolName,
+            amount: payableAmount,
+            notes: {
+              ...formData,
+              channel: "INSTITUTIONAL",
+              paymentMethod: "CASHFREE_ONLINE",
+              submittedAt: new Date().toISOString()
+            }
+          })
+        });
+
+        const orderData = await orderRes.json();
+
+        if (!orderRes.ok || !orderData.paymentSessionId) {
+          throw new Error(orderData.error || "Failed to initialize secure Cashfree payment session for delegation.");
+        }
+
+        // Launch Cashfree PG Checkout
+        await initiateCashfreePayment({
+          paymentSessionId: orderData.paymentSessionId,
+          mode: "production",
+          redirectTarget: "_self"
+        });
+        return;
+      }
+
+      // Manual UPI / UTR Fallback Flow
       const payload = {
         eventId,
         eventSlug,
         ticketCategoryId: tickets[0]?.id || undefined,
         ...formData,
         totalStudents: parseInt(formData.totalStudents, 10) || 1,
-        feePaid: Number(formData.feePaid) || (parseInt(formData.totalStudents, 10) || 1) * perStudentFee
+        feePaid: payableAmount
       };
 
       const res = await fetch("/api/events/register-institutional", {
@@ -300,7 +347,7 @@ export default function InstitutionalRegistrationCard({
         data.registrationNumber
       )}&order_id=${encodeURIComponent(data.orderId || "")}&status=pending&name=${encodeURIComponent(
         formData.schoolName
-      )}&amount=${encodeURIComponent(formData.feePaid)}&utr=${encodeURIComponent(
+      )}&amount=${encodeURIComponent(payableAmount)}&utr=${encodeURIComponent(
         formData.transactionId
       )}&channel=institutional`;
 
@@ -859,17 +906,149 @@ export default function InstitutionalRegistrationCard({
                 <CreditCard className="w-6 h-6 text-citrus" />
                 Section D — Payment Details (Consolidated Delegation)
               </h3>
-              <div className="mt-1.5 p-3 bg-warmwhite border border-charcoal/15 rounded text-xs text-charcoal/80 leading-relaxed">
-                <p className="font-medium text-navy mb-0.5">Payment Instructions:</p>
-                <p className="text-[11px] text-charcoal/70">
-                  For institutional registrations, payment may be made collectively for all participating students,
-                  subject to the approved fee structure. Official receipt and consolidated admission invoice will be issued.
-                </p>
-              </div>
+              <p className="text-xs text-charcoal/60 mt-1">
+                Choose online checkout via Cashfree PG or manual UPI UTR verification for your school delegation.
+              </p>
             </div>
 
-            {/* UPI QR & Account Box */}
-            <div className="grid sm:grid-cols-2 gap-5 p-5 bg-navy text-warmwhite rounded-md border border-citrus/30 shadow-md">
+            {/* Payment Mode Selector Tabs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMethod("CASHFREE");
+                  setErrorMessage("");
+                }}
+                className={`p-4 rounded-lg border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                  paymentMethod === "CASHFREE"
+                    ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-600"
+                    : "border-charcoal/15 bg-warmwhite hover:bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Recommended
+                  </span>
+                  <span className="text-xs font-mono font-bold text-emerald-800">⚡ Instant</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-charcoal flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-emerald-700" />
+                    Pay Online via Cashfree
+                  </h4>
+                  <p className="text-[11px] text-charcoal/70 mt-1 leading-snug">
+                    UPI, Corporate/Debit/Credit Cards &amp; NetBanking. Instant consolidated tax invoice.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMethod("MANUAL_UTR");
+                  setErrorMessage("");
+                }}
+                className={`p-4 rounded-lg border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                  paymentMethod === "MANUAL_UTR"
+                    ? "border-navy bg-navy/5 shadow-sm ring-1 ring-navy"
+                    : "border-charcoal/15 bg-warmwhite hover:bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-charcoal/10 text-charcoal">
+                    Institutional Transfer / NEFT
+                  </span>
+                  <span className="text-xs font-mono font-bold text-charcoal/70">Manual</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-charcoal flex items-center gap-2">
+                    <FileCheck2 className="w-4 h-4 text-navy" />
+                    Direct UPI QR / Bank UTR
+                  </h4>
+                  <p className="text-[11px] text-charcoal/70 mt-1 leading-snug">
+                    Scan static QR code, transfer via school bank account, and upload 12-digit UTR + receipt.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* CASHFREE PAYMENT VIEW */}
+            {paymentMethod === "CASHFREE" && (
+              <div className="space-y-4 animate-fadeIn">
+                <div className="border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/[0.06] to-white p-5 sm:p-6 rounded-lg space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-charcoal/10 pb-4">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+                        CASHFREE SECURE PAYMENT GATEWAY
+                      </span>
+                      <h4 className="font-editorial text-xl font-bold text-charcoal">
+                        Consolidated Institutional Delegation
+                      </h4>
+                      <p className="text-xs text-charcoal/70 mt-0.5">
+                        PCI-DSS Level 1 Certified · 256-Bit Bank Encryption · RBI Compliant
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right bg-white px-4 py-2 rounded border border-charcoal/10">
+                      <span className="text-[10px] text-charcoal/60 uppercase block font-semibold">Total Payable</span>
+                      <span className="font-editorial text-2xl sm:text-3xl font-bold text-emerald-700">
+                        ₹{formData.feePaid || calculatedTotalAmount}
+                      </span>
+                      <span className="text-[10px] text-charcoal/50 block font-mono">
+                        {formData.totalStudents} Delegates × ₹{perStudentFee}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Supported Payment Channels */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="p-2.5 bg-white rounded border border-charcoal/10 flex items-center gap-2">
+                      <span className="text-base">📱</span>
+                      <div>
+                        <strong className="block text-[11px] text-charcoal">UPI Instant</strong>
+                        <span className="text-[10px] text-charcoal/60">GPay, PhonePe, Paytm</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-white rounded border border-charcoal/10 flex items-center gap-2">
+                      <span className="text-base">💳</span>
+                      <div>
+                        <strong className="block text-[11px] text-charcoal">Debit &amp; Credit</strong>
+                        <span className="text-[10px] text-charcoal/60">Visa, Master, RuPay</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-white rounded border border-charcoal/10 flex items-center gap-2">
+                      <span className="text-base">🏦</span>
+                      <div>
+                        <strong className="block text-[11px] text-charcoal">Corporate Banking</strong>
+                        <span className="text-[10px] text-charcoal/60">50+ Major Banks</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-white rounded border border-charcoal/10 flex items-center gap-2">
+                      <span className="text-base">⚡</span>
+                      <div>
+                        <strong className="block text-[11px] text-charcoal">Cred &amp; Wallets</strong>
+                        <span className="text-[10px] text-charcoal/60">Instant Checkout</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-white rounded-md border border-emerald-300 text-xs text-charcoal/80 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span>Automated Pass &amp; Docket Generation</span>
+                    </div>
+                    <p className="text-[11px] text-charcoal/70 leading-relaxed">
+                      No screenshot or UTR number needed! Proceed to Section E to review the authorised declaration. Submitting the form will immediately open the secure Cashfree checkout interface for ₹{formData.feePaid || calculatedTotalAmount}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MANUAL UTR VIEW */}
+            {paymentMethod === "MANUAL_UTR" && (
+              <div className="space-y-5 animate-fadeIn">
+                {/* UPI QR & Account Box */}
+                <div className="grid sm:grid-cols-2 gap-5 p-5 bg-navy text-warmwhite rounded-md border border-citrus/30 shadow-md">
               {/* QR Code */}
               <div className="flex flex-col items-center justify-center p-4 bg-white rounded text-charcoal">
                 <span className="text-[10px] font-bold tracking-widest text-crimson uppercase mb-2">
@@ -1006,6 +1185,8 @@ export default function InstitutionalRegistrationCard({
                 </div>
               </div>
             </div>
+          </div>
+        )}
 
             <div className="pt-4 flex items-center justify-between border-t border-charcoal/10">
               <button
@@ -1019,7 +1200,7 @@ export default function InstitutionalRegistrationCard({
               <button
                 type="button"
                 onClick={() => navigateTo("E")}
-                className="inline-flex items-center gap-2 bg-navy hover:bg-slate text-warmwhite text-xs font-bold uppercase tracking-widest py-3 px-6 rounded transition-all group shadow-sm"
+                className="inline-flex items-center gap-2 bg-navy hover:bg-slate text-warmwhite text-xs font-bold uppercase tracking-widest py-3 px-6 rounded transition-all group shadow-sm cursor-pointer"
               >
                 <span>Proceed to Section E</span>
                 <ArrowRight className="w-4 h-4 text-citrus group-hover:translate-x-1 transition-transform" />
@@ -1107,6 +1288,20 @@ export default function InstitutionalRegistrationCard({
                   </div>
                 </div>
               </div>
+
+              {/* Delegation Submission Mode Info */}
+              <div className="p-4 bg-navy/5 border border-navy/20 rounded-lg text-xs space-y-1">
+                <strong className="text-navy block uppercase tracking-wider text-[11px]">
+                  {paymentMethod === "CASHFREE"
+                    ? `⚡ Instant Online Checkout via Cashfree (₹${formData.feePaid})`
+                    : "🏦 Manual Bank Transfer / UTR Verification"}
+                </strong>
+                <p className="text-charcoal/70">
+                  {paymentMethod === "CASHFREE"
+                    ? "Submitting will immediately launch the Cashfree payment gateway to complete payment via NetBanking, Cards, or UPI. Official institutional accreditation invoice and all delegate passes will be generated automatically."
+                    : "Submitting will record your school delegation roster and UTR number for manual verification by the Secretariat."}
+                </p>
+              </div>
             </div>
 
             <div className="pt-4 flex items-center justify-between border-t border-charcoal/10">
@@ -1121,19 +1316,32 @@ export default function InstitutionalRegistrationCard({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`inline-flex items-center gap-2.5 bg-citrus hover:bg-citrus-hover text-navy text-xs sm:text-sm font-bold uppercase tracking-widest py-3.5 px-8 rounded shadow-md transition-all ${
+                className={`inline-flex items-center gap-2.5 bg-citrus hover:bg-citrus-hover text-navy text-xs sm:text-sm font-bold uppercase tracking-widest py-3.5 px-8 rounded shadow-md transition-all cursor-pointer ${
                   isSubmitting ? "opacity-60 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
                 }`}
               >
                 {isSubmitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-navy border-t-transparent rounded-full animate-spin" />
-                    <span>Submitting Institutional Roster...</span>
+                    <span>
+                      {paymentMethod === "CASHFREE"
+                        ? "Opening Cashfree Gateway..."
+                        : "Submitting Institutional Roster..."}
+                    </span>
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Submit Institutional Registration</span>
+                    {paymentMethod === "CASHFREE" ? (
+                      <>
+                        <span>Proceed to Cashfree Checkout (₹{formData.feePaid})</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Submit Institutional Registration</span>
+                      </>
+                    )}
                   </>
                 )}
               </button>

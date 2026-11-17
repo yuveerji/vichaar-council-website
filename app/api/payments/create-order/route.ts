@@ -7,11 +7,17 @@ import { getCurrentParticipant } from "@/lib/participant-auth";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { eventId, ticketCategoryId, fullName, email, phone, city, institution, notes } = body;
+    const { eventId, eventSlug, ticketCategoryId, notes } = body;
 
-    if (!eventId || !ticketCategoryId || !fullName || !email || !phone || !city) {
+    const fullName = String(body.fullName || body.speaker1Name || body.coordinatorName || body.schoolName || "").trim();
+    const email = String(body.email || body.speaker1Email || body.coordinatorEmail || body.officialSchoolEmail || "").trim();
+    const phone = String(body.phone || body.whatsappNumber || body.speaker1Phone || body.coordinatorPhone || "").trim();
+    const city = String(body.city || body.speaker1City || "New Delhi").trim();
+    const institution = String(body.institution || body.schoolName || body.speaker1School || "").trim();
+
+    if (!fullName || !email || !phone) {
       return NextResponse.json(
-        { error: "Missing required registration fields (Event, Ticket, Name, Email, Phone, City)." },
+        { error: "Missing required registration contact fields (Full Name, Email, Phone Number)." },
         { status: 400 }
       );
     }
@@ -30,8 +36,15 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Fetch Event & Ticket Category
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
+    const event = await prisma.event.findFirst({
+      where: {
+        OR: [
+          ...(eventId ? [{ id: eventId }] : []),
+          ...(eventSlug ? [{ slug: eventSlug }] : []),
+          { slug: "shabd-and-soch" },
+          { slug: "shabd-soch" }
+        ]
+      },
       include: { tickets: true }
     });
 
@@ -43,7 +56,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Registration for this event is closed." }, { status: 400 });
     }
 
-    const ticket = event.tickets.find((t) => t.id === ticketCategoryId);
+    const ticket =
+      (ticketCategoryId ? event.tickets.find((t) => t.id === ticketCategoryId) : null) ||
+      event.tickets[0];
+
     if (!ticket || !ticket.isActive) {
       return NextResponse.json({ error: "Selected ticket category is unavailable." }, { status: 400 });
     }
@@ -51,6 +67,9 @@ export async function POST(req: NextRequest) {
     if (ticket.soldCount >= ticket.capacity) {
       return NextResponse.json({ error: "This ticket category is fully booked." }, { status: 400 });
     }
+
+    const payableAmount = Number(body.amount || body.feePaid || ticket.price || 549);
+    const notesString = typeof notes === "object" ? JSON.stringify(notes) : String(notes || "");
 
     // 2. Generate unique registration number: TVC-YEAR-RANDOM
     const currentYear = new Date().getFullYear();
@@ -119,10 +138,10 @@ export async function POST(req: NextRequest) {
     const orderId = `order_tvc_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
 
     // Cashfree Production and Sandbox API strictly enforce HTTPS for return_url and notify_url.
-    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || "https://thevichaarcouncil.in";
+    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || "https://the-vichaar-council.vercel.app";
     if (!siteUrl || siteUrl.includes("localhost")) {
-      const host = req.headers.get("host") || "thevichaarcouncil.in";
-      siteUrl = host.includes("localhost") ? "https://thevichaarcouncil.in" : `https://${host}`;
+      const host = req.headers.get("host") || "the-vichaar-council.vercel.app";
+      siteUrl = host.includes("localhost") ? "https://the-vichaar-council.vercel.app" : `https://${host}`;
     } else if (!siteUrl.startsWith("https://")) {
       siteUrl = siteUrl.replace(/^http:\/\//, "https://");
     }
@@ -139,9 +158,9 @@ export async function POST(req: NextRequest) {
         phone,
         city,
         institution,
-        notes,
+        notes: notesString,
         paymentStatus: "PENDING",
-        totalAmount: ticket.price,
+        totalAmount: payableAmount,
         currency: "INR",
         paymentOrderId: orderId
       }
@@ -152,7 +171,7 @@ export async function POST(req: NextRequest) {
 
     const cfOrder = await cashfree.createOrder({
       orderId,
-      orderAmount: ticket.price,
+      orderAmount: payableAmount,
       orderCurrency: "INR",
       customerDetails: {
         customerId: `cust_${newRegistration.id.slice(0, 8)}`,
@@ -171,7 +190,7 @@ export async function POST(req: NextRequest) {
       data: {
         orderId,
         registrationId: newRegistration.id,
-        amount: ticket.price,
+        amount: payableAmount,
         currency: "INR",
         status: "CREATED",
         paymentSessionId: cfOrder.paymentSessionId,
@@ -191,7 +210,7 @@ export async function POST(req: NextRequest) {
       phone: newRegistration.phone,
       institution: newRegistration.institution,
       passCategory: ticket.name,
-      totalAmount: ticket.price,
+      totalAmount: payableAmount,
       paymentStatus: "PENDING"
     }).catch((e) => console.error("Google Sheets sync error:", e));
 
@@ -202,7 +221,7 @@ export async function POST(req: NextRequest) {
       paymentSessionId: cfOrder.paymentSessionId,
       cfOrderId: cfOrder.cfOrderId,
       registrationNumber,
-      amount: ticket.price,
+      amount: payableAmount,
       currency: "INR",
       eventSlug: event.slug,
       isMock: cfOrder.isMock || false

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import VichaarLogo from "@/components/VichaarLogo";
+import { initiateCashfreePayment } from "@/lib/cashfreeClient";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Users2,
@@ -89,6 +90,7 @@ export default function TeamRegistrationCard({
   });
 
   const [copiedUpi, setCopiedUpi] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"CASHFREE" | "MANUAL_UTR">("CASHFREE");
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -227,13 +229,15 @@ export default function TeamRegistrationCard({
   };
 
   const validateSectionD = () => {
-    if (!formData.transactionId.trim()) {
-      setErrorMessage("Please enter the 12-digit UPI Transaction ID / UTR Number in Section D.");
-      return false;
-    }
-    if (!formData.paymentScreenshot) {
-      setErrorMessage("Please upload your team payment screenshot in Section D.");
-      return false;
+    if (paymentMethod === "MANUAL_UTR") {
+      if (!formData.transactionId.trim()) {
+        setErrorMessage("Please enter the 12-digit UPI Transaction ID / UTR Number in Section D.");
+        return false;
+      }
+      if (!formData.paymentScreenshot) {
+        setErrorMessage("Please upload your team payment screenshot in Section D.");
+        return false;
+      }
     }
     return true;
   };
@@ -268,6 +272,47 @@ export default function TeamRegistrationCard({
     setIsSubmitting(true);
 
     try {
+      if (paymentMethod === "CASHFREE") {
+        // Create Cashfree Order for Team (₹1098)
+        const orderRes = await fetch("/api/payments/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId,
+            eventSlug,
+            ticketCategoryId: tickets[0]?.id || undefined,
+            fullName: `${formData.speaker1Name} & ${formData.speaker2Name} (${formData.teamName})`,
+            email: formData.speaker1Email,
+            phone: formData.speaker1Phone,
+            city: formData.speaker1City,
+            institution: formData.speaker1School,
+            amount: 1098,
+            notes: {
+              ...formData,
+              channel: "TEAM",
+              registrationType: "TEAM_DELEGATE",
+              paymentMethod: "CASHFREE_ONLINE",
+              submittedAt: new Date().toISOString()
+            }
+          })
+        });
+
+        const orderData = await orderRes.json();
+
+        if (!orderRes.ok || !orderData.paymentSessionId) {
+          throw new Error(orderData.error || "Failed to initialize secure Cashfree payment session for team.");
+        }
+
+        // Launch Cashfree PG Checkout
+        await initiateCashfreePayment({
+          paymentSessionId: orderData.paymentSessionId,
+          mode: "production",
+          redirectTarget: "_self"
+        });
+        return;
+      }
+
+      // Manual UPI / UTR Fallback Flow
       const payload = {
         eventId,
         eventSlug,
@@ -849,74 +894,211 @@ export default function TeamRegistrationCard({
                 <CreditCard className="w-6 h-6 text-citrus" />
                 Section D — Consolidated Team Payment (₹1,098)
               </h3>
+              <p className="text-xs text-charcoal/60 mt-1">
+                Choose online checkout via Cashfree PG or manual UPI UTR verification for your 2-delegate debate team.
+              </p>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-5 p-5 bg-navy text-warmwhite rounded-md border border-citrus/30 shadow-md">
-              <div className="flex flex-col items-center justify-center p-4 bg-white rounded text-charcoal">
-                <QRCodeSVG value={upiPayPayload} size={150} level="H" includeMargin />
-                <span className="text-[10px] text-charcoal/60 mt-1 font-mono">Scan ₹1,098 for 2 Passes</span>
-              </div>
-              <div className="space-y-3 flex flex-col justify-between">
+            {/* Payment Mode Selector Tabs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMethod("CASHFREE");
+                  setErrorMessage("");
+                }}
+                className={`p-4 rounded-lg border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                  paymentMethod === "CASHFREE"
+                    ? "border-emerald-600 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-600"
+                    : "border-charcoal/15 bg-warmwhite hover:bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Recommended
+                  </span>
+                  <span className="text-xs font-mono font-bold text-emerald-800">⚡ Instant</span>
+                </div>
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-citrus block">UPI ID</span>
-                  <div className="mt-2 flex items-center justify-between p-2.5 bg-white/10 rounded">
-                    <span className="font-mono text-xs">{upiId}</span>
-                    <button
-                      type="button"
-                      onClick={copyToClipboard}
-                      className="px-2.5 py-1 bg-citrus text-navy text-[10px] font-bold rounded uppercase"
-                    >
-                      {copiedUpi ? "Copied" : "Copy"}
-                    </button>
+                  <h4 className="font-bold text-sm text-charcoal flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-emerald-700" />
+                    Pay Online via Cashfree
+                  </h4>
+                  <p className="text-[11px] text-charcoal/70 mt-1 leading-snug">
+                    UPI (Google Pay, PhonePe, Paytm), Cards &amp; NetBanking. Instant passes for both delegates.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMethod("MANUAL_UTR");
+                  setErrorMessage("");
+                }}
+                className={`p-4 rounded-lg border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                  paymentMethod === "MANUAL_UTR"
+                    ? "border-navy bg-navy/5 shadow-sm ring-1 ring-navy"
+                    : "border-charcoal/15 bg-warmwhite hover:bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-charcoal/10 text-charcoal">
+                    Offline / NEFT
+                  </span>
+                  <span className="text-xs font-mono font-bold text-charcoal/70">Manual</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-charcoal flex items-center gap-2">
+                    <FileCheck2 className="w-4 h-4 text-navy" />
+                    Direct UPI QR / Bank UTR
+                  </h4>
+                  <p className="text-[11px] text-charcoal/70 mt-1 leading-snug">
+                    Scan static QR code, transfer ₹1,098 manually, and enter 12-digit UTR + receipt.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* CASHFREE PAYMENT VIEW */}
+            {paymentMethod === "CASHFREE" && (
+              <div className="space-y-4 animate-fadeIn">
+                <div className="border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/[0.06] to-white p-5 sm:p-6 rounded-lg space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-charcoal/10 pb-4">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+                        CASHFREE SECURE PAYMENT GATEWAY
+                      </span>
+                      <h4 className="font-editorial text-xl font-bold text-charcoal">
+                        Consolidated Team Pass (2 Delegates)
+                      </h4>
+                      <p className="text-xs text-charcoal/70 mt-0.5">
+                        PCI-DSS Level 1 Certified · 256-Bit Bank Encryption · RBI Compliant
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right bg-white px-4 py-2 rounded border border-charcoal/10">
+                      <span className="text-[10px] text-charcoal/60 uppercase block font-semibold">Total Payable</span>
+                      <span className="font-editorial text-2xl sm:text-3xl font-bold text-emerald-700">₹1,098</span>
+                      <span className="text-[10px] text-charcoal/50 block font-mono">2 × ₹549 per delegate</span>
+                    </div>
+                  </div>
+
+                  {/* Supported Payment Channels */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="p-2.5 bg-white rounded border border-charcoal/10 flex items-center gap-2">
+                      <span className="text-base">📱</span>
+                      <div>
+                        <strong className="block text-[11px] text-charcoal">UPI Instant</strong>
+                        <span className="text-[10px] text-charcoal/60">GPay, PhonePe, Paytm</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-white rounded border border-charcoal/10 flex items-center gap-2">
+                      <span className="text-base">💳</span>
+                      <div>
+                        <strong className="block text-[11px] text-charcoal">Debit &amp; Credit</strong>
+                        <span className="text-[10px] text-charcoal/60">Visa, Master, RuPay</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-white rounded border border-charcoal/10 flex items-center gap-2">
+                      <span className="text-base">🏦</span>
+                      <div>
+                        <strong className="block text-[11px] text-charcoal">Net Banking</strong>
+                        <span className="text-[10px] text-charcoal/60">50+ Major Banks</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-white rounded border border-charcoal/10 flex items-center gap-2">
+                      <span className="text-base">⚡</span>
+                      <div>
+                        <strong className="block text-[11px] text-charcoal">Cred &amp; Wallets</strong>
+                        <span className="text-[10px] text-charcoal/60">Instant Checkout</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-white rounded-md border border-emerald-300 text-xs text-charcoal/80 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span>Instant Verification &amp; Pass Issuance</span>
+                    </div>
+                    <p className="text-[11px] text-charcoal/70 leading-relaxed">
+                      No screenshot or UTR entry needed! Proceed to Section E to review declarations. Submitting the form will immediately open the secure Cashfree checkout interface for ₹1,098.
+                    </p>
                   </div>
                 </div>
-                <div className="text-xs font-mono space-y-1 text-warmwhite/80 border-t border-white/10 pt-2">
-                  <div className="flex justify-between"><span>2 Delegate Passes:</span><span>2 × ₹549</span></div>
-                  <div className="flex justify-between text-citrus font-bold text-sm"><span>Total Payable:</span><span>₹1,098</span></div>
+              </div>
+            )}
+
+            {/* MANUAL UTR VIEW */}
+            {paymentMethod === "MANUAL_UTR" && (
+              <div className="space-y-5 animate-fadeIn">
+                <div className="grid sm:grid-cols-2 gap-5 p-5 bg-navy text-warmwhite rounded-md border border-citrus/30 shadow-md">
+                  <div className="flex flex-col items-center justify-center p-4 bg-white rounded text-charcoal">
+                    <QRCodeSVG value={upiPayPayload} size={150} level="H" includeMargin />
+                    <span className="text-[10px] text-charcoal/60 mt-1 font-mono">Scan ₹1,098 for 2 Passes</span>
+                  </div>
+                  <div className="space-y-3 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-citrus block">UPI ID</span>
+                      <div className="mt-2 flex items-center justify-between p-2.5 bg-white/10 rounded">
+                        <span className="font-mono text-xs">{upiId}</span>
+                        <button
+                          type="button"
+                          onClick={copyToClipboard}
+                          className="px-2.5 py-1 bg-citrus text-navy text-[10px] font-bold rounded uppercase cursor-pointer"
+                        >
+                          {copiedUpi ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-xs font-mono space-y-1 text-warmwhite/80 border-t border-white/10 pt-2">
+                      <div className="flex justify-between"><span>2 Delegate Passes:</span><span>2 × ₹549</span></div>
+                      <div className="flex justify-between text-citrus font-bold text-sm"><span>Total Payable:</span><span>₹1,098</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-charcoal mb-1.5">
+                      Transaction UTR / Reference ID <span className="text-crimson">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required={paymentMethod === "MANUAL_UTR"}
+                      placeholder="12-digit UPI reference"
+                      value={formData.transactionId}
+                      onChange={(e) => setFormData({ ...formData, transactionId: e.target.value })}
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-charcoal/20 rounded bg-warmwhite focus:bg-white focus:outline-none focus:border-navy font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-charcoal mb-1.5">
+                      Upload Payment Screenshot <span className="text-crimson">*</span> (Max 50MB)
+                    </label>
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-charcoal/25 rounded-md p-4 text-center cursor-pointer bg-warmwhite hover:bg-white"
+                    >
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept="image/*,.pdf"
+                        className="hidden"
+                      />
+                      {screenshotPreview ? (
+                        <span className="text-xs text-navy font-bold truncate block">{fileName} (Uploaded)</span>
+                      ) : (
+                        <span className="text-xs text-charcoal/70 flex items-center justify-center gap-1.5">
+                          <Upload className="w-4 h-4 text-citrus" /> Click to upload receipt
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-charcoal mb-1.5">
-                  Transaction UTR / Reference ID <span className="text-crimson">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="12-digit UPI reference"
-                  value={formData.transactionId}
-                  onChange={(e) => setFormData({ ...formData, transactionId: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-charcoal/20 rounded bg-warmwhite focus:bg-white focus:outline-none focus:border-navy font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-charcoal mb-1.5">
-                  Upload Payment Screenshot <span className="text-crimson">*</span> (Max 50MB)
-                </label>
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-charcoal/25 rounded-md p-4 text-center cursor-pointer bg-warmwhite hover:bg-white"
-                >
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="image/*,.pdf"
-                    className="hidden"
-                  />
-                  {screenshotPreview ? (
-                    <span className="text-xs text-navy font-bold truncate block">{fileName} (Uploaded)</span>
-                  ) : (
-                    <span className="text-xs text-charcoal/70 flex items-center justify-center gap-1.5">
-                      <Upload className="w-4 h-4 text-citrus" /> Click to upload receipt
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+            )}
 
             <div className="pt-4 flex items-center justify-between border-t border-charcoal/10">
               <button
@@ -930,7 +1112,7 @@ export default function TeamRegistrationCard({
               <button
                 type="button"
                 onClick={() => navigateTo("E")}
-                className="inline-flex items-center gap-2 bg-navy hover:bg-slate text-warmwhite text-xs font-bold uppercase tracking-widest py-3 px-6 rounded transition-all group shadow-sm"
+                className="inline-flex items-center gap-2 bg-navy hover:bg-slate text-warmwhite text-xs font-bold uppercase tracking-widest py-3 px-6 rounded transition-all group shadow-sm cursor-pointer"
               >
                 <span>Proceed to Declarations</span>
                 <ArrowRight className="w-4 h-4 text-citrus group-hover:translate-x-1 transition-transform" />
@@ -978,6 +1160,20 @@ export default function TeamRegistrationCard({
               </label>
             </div>
 
+            {/* Team Submission Summary Box */}
+            <div className="p-4 bg-navy/5 border border-navy/20 rounded-lg text-xs space-y-1">
+              <strong className="text-navy block uppercase tracking-wider text-[11px]">
+                {paymentMethod === "CASHFREE"
+                  ? "⚡ Instant Online Checkout via Cashfree (₹1,098)"
+                  : "🏦 Manual Bank Transfer / UTR Verification"}
+              </strong>
+              <p className="text-charcoal/70">
+                {paymentMethod === "CASHFREE"
+                  ? "Submitting will immediately initiate Cashfree PG checkout where you can complete payment via UPI, Cards, or NetBanking. Both delegate passes will be verified and generated automatically."
+                  : "Submitting will record your registration details and UTR number for verification by the Secretariat."}
+              </p>
+            </div>
+
             <div className="pt-4 flex items-center justify-between border-t border-charcoal/10">
               <button
                 type="button"
@@ -990,9 +1186,31 @@ export default function TeamRegistrationCard({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-2 bg-citrus hover:bg-citrus-hover text-navy text-xs sm:text-sm font-bold uppercase tracking-widest py-3.5 px-8 rounded shadow-md transition-all"
+                className="inline-flex items-center gap-2 bg-citrus hover:bg-citrus-hover text-navy text-xs sm:text-sm font-bold uppercase tracking-widest py-3.5 px-8 rounded shadow-md transition-all cursor-pointer disabled:opacity-50"
               >
-                {isSubmitting ? "Submitting Team Registration..." : "Submit Team Registration"}
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-navy border-t-transparent rounded-full animate-spin" />
+                    <span>
+                      {paymentMethod === "CASHFREE"
+                        ? "Opening Cashfree Gateway..."
+                        : "Submitting Team Registration..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      {paymentMethod === "CASHFREE"
+                        ? "Proceed to Cashfree Checkout (₹1,098)"
+                        : "Submit Team Registration"}
+                    </span>
+                    {paymentMethod === "CASHFREE" ? (
+                      <ArrowRight className="w-4 h-4" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                  </>
+                )}
               </button>
             </div>
           </div>
