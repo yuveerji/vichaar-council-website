@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --webpack",
     "dev:turbo": "next dev --turbo",
-    "build": "next build --webpack",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && prisma db push --accept-data-loss && node scripts/seed-shabd-soch.mjs && node scripts/seed_founder.js && next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
