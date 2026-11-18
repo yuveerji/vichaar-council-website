@@ -69,7 +69,7 @@ export default function ContactPage() {
                     </a>
                   </div>
                   <div>
-                    <span className="text-mutedgrey uppercase tracking-wider block text-[10px]">Research & Publications</span>
+                    <span className="text-mutedgrey uppercase tracking-wider block text-[10px]">Documentation</span>
                     <a href="mailto:research@thevichaarcouncil.in" className="font-semibold text-charcoal hover:text-amalfi text-sm">
                       research@thevichaarcouncil.in
                     </a>

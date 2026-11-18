@@ -26,7 +26,7 @@ const navigationItems = [
   { name: "About Us", href: "/about" },
   { name: "Our Initiatives", href: "/initiatives" },
   { name: "Events", href: "/events" },
-  { name: "Research & Publications", href: "/research" },
+  { name: "Documentation", href: "/research" },
   { name: "Leadership", href: "/leadership" },
   { name: "Gallery", href: "/gallery" },
   { name: "Contact", href: "/contact" }

@@ -29,7 +29,7 @@ const pillars = [
     num: "III",
     title: "RESEARCH",
     slogan: "The pursuit of knowledge beyond assumption.",
-    description: "We value curiosity, investigation and informed inquiry. Through research and publications, we encourage deeper engagement with contemporary issues, emerging ideas and subjects that deserve greater examination.",
+    description: "We value curiosity, investigation and informed inquiry. Through research and documentation, we encourage deeper engagement with contemporary issues, emerging ideas and subjects that deserve greater examination.",
     iconSrc: "/assets/pillars/research.png",
     color: "text-gelato"
   },
@@ -92,7 +92,7 @@ const whatWeDo = [
     description: "Experiences that introduce participants to international relations, negotiation, institutional processes and the complexities of global affairs."
   },
   {
-    title: "Research & Publications",
+    title: "Documentation",
     description: "An intellectual platform for exploring ideas, examining developments, sharing perspectives and contributing to informed conversations."
   },
   {

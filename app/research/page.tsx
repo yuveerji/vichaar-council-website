@@ -4,7 +4,7 @@ import Image from "next/image";
 import prisma from "@/lib/db";
 
 export const metadata: Metadata = {
-  title: "Research & Publications | The Vichaar Council",
+  title: "Documentation | The Vichaar Council",
   description: "Explore policy analyses, constitutional commentaries, and philosophical research papers published by The Vichaar Council."
 };
 
@@ -24,7 +24,7 @@ export default async function ResearchDirectoryPage() {
         <div className="container-shell relative z-10 max-w-4xl">
           <p className="eyebrow text-citrus mb-3">Discourse India Journal · Working Papers</p>
           <h1 className="font-editorial text-5xl sm:text-6xl font-bold leading-tight">
-            Research & Publications
+            Documentation
           </h1>
           <p className="mt-5 text-base text-mutedgrey leading-relaxed">
             The intellectual journal of The Vichaar Council. Rigorous essays, empirical investigations,

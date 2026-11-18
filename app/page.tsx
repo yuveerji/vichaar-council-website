@@ -689,7 +689,7 @@ export default async function HomePage() {
       </section>
 
       {/* =========================================================================
-          SECTION 11 — RESEARCH & PUBLICATIONS
+          SECTION 11 — DOCUMENTATION
           Visual Environment: Deep Navy (#0B1424)
          ========================================================================= */}
       <section className="bg-[#0B1424] text-warmwhite py-24 lg:py-32 border-b border-navy-border">
@@ -698,14 +698,14 @@ export default async function HomePage() {
             <div>
               <p className="eyebrow text-citrus mb-2 font-sans">08 / Scholarly Dockets & Working Papers</p>
               <h2 className="font-display text-4xl sm:text-5xl font-semibold text-warmwhite">
-                Research & Publications
+                Documentation
               </h2>
             </div>
             <Link
               href="/research"
               className="inline-flex items-center gap-2 text-xs font-sans font-semibold tracking-widest text-citrus hover:text-gelato transition-colors uppercase"
             >
-              Browse Research Archive ↗
+              Browse Documentation Archive ↗
             </Link>
           </div>
 
