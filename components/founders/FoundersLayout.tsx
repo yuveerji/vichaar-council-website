@@ -62,8 +62,8 @@ const founderNavSections: FounderNavSection[] = [
     icon: LayoutDashboard,
     items: [
       { name: "Command Overview", href: "/founders" },
-      { name: "Live Operations", href: "/founders/executive/operations" },
-      { name: "Alerts & Notifications", href: "/founders/executive/alerts" }
+      { name: "Live Operations", href: "/admin/executive/operations" },
+      { name: "Alerts & Notifications", href: "/admin/executive/alerts" }
     ]
   },
   {
@@ -72,10 +72,10 @@ const founderNavSections: FounderNavSection[] = [
     title: "ORGANISATION",
     icon: Users,
     items: [
-      { name: "Members & Users", href: "/founders/organisation/users" },
-      { name: "Leadership & Team", href: "/founders/organisation/leadership" },
-      { name: "Roles & Permissions", href: "/founders/organisation/roles" },
-      { name: "Applications & Recruitment", href: "/founders/organisation/applications" }
+      { name: "Members & Users", href: "/admin/organisation/users" },
+      { name: "Leadership & Team", href: "/admin/organisation/leadership" },
+      { name: "Roles & Permissions", href: "/admin/organisation/roles" },
+      { name: "Applications & Recruitment", href: "/admin/organisation/applications" }
     ]
   },
   {
@@ -84,11 +84,11 @@ const founderNavSections: FounderNavSection[] = [
     title: "CONTENT & PUBLISHING",
     icon: FileText,
     items: [
-      { name: "Pages & Content Manager", href: "/founders/content/pages" },
-      { name: "News & Articles", href: "/founders/content/news" },
-      { name: "Media Library", href: "/founders/content/media" },
-      { name: "Navigation & Footer Builder", href: "/founders/content/navigation" },
-      { name: "SEO & Metadata", href: "/founders/content/seo" }
+      { name: "Pages & Content Manager", href: "/admin/content/pages" },
+      { name: "News & Articles", href: "/admin/content/news" },
+      { name: "Media Library", href: "/admin/content/media" },
+      { name: "Navigation & Footer Builder", href: "/admin/content/navigation" },
+      { name: "SEO & Metadata", href: "/admin/content/seo" }
     ]
   },
   {
@@ -97,11 +97,11 @@ const founderNavSections: FounderNavSection[] = [
     title: "PROGRAMMES & EVENTS",
     icon: Calendar,
     items: [
-      { name: "Event Management", href: "/founders/events" },
-      { name: "SHABD & SOCH Management", href: "/founders/events/shabd-soch", badge: "FLAGSHIP" },
-      { name: "Registrations Ledger", href: "/founders/registrations" },
-      { name: "Tickets & Passes", href: "/founders/events/tickets" },
-      { name: "Certificates & Awards", href: "/founders/events/certificates" }
+      { name: "Event Management", href: "/admin/events" },
+      { name: "SHABD & SOCH Management", href: "/admin/events/shabd-soch", badge: "FLAGSHIP" },
+      { name: "Registrations Ledger", href: "/admin/registrations" },
+      { name: "Tickets & Passes", href: "/admin/events/tickets" },
+      { name: "Certificates & Awards", href: "/admin/events/certificates" }
     ]
   },
   {
@@ -110,11 +110,11 @@ const founderNavSections: FounderNavSection[] = [
     title: "COMMUNICATIONS",
     icon: Mail,
     items: [
-      { name: "Email Command Centre", href: "/founders/communications/email" },
-      { name: "Campaign Manager", href: "/founders/communications/campaigns" },
-      { name: "Announcements", href: "/founders/communications/announcements" },
-      { name: "Contact & Enquiries", href: "/founders/enquiries" },
-      { name: "Notification Manager", href: "/founders/communications/notifications" }
+      { name: "Email Command Centre", href: "/admin/communications/email" },
+      { name: "Campaign Manager", href: "/admin/communications/campaigns" },
+      { name: "Announcements", href: "/admin/communications/announcements" },
+      { name: "Contact & Enquiries", href: "/admin/enquiries" },
+      { name: "Notification Manager", href: "/admin/communications/notifications" }
     ]
   },
   {
@@ -123,11 +123,11 @@ const founderNavSections: FounderNavSection[] = [
     title: "FINANCE & OPERATIONS",
     icon: CreditCard,
     items: [
-      { name: "Financial Overview", href: "/founders/finance/overview" },
-      { name: "Cashfree Transactions", href: "/founders/payments", badge: "PROD" },
-      { name: "Invoices & Records", href: "/founders/finance/invoices" },
-      { name: "Partnerships & Sponsors", href: "/founders/finance/partnerships" },
-      { name: "Reports & Analytics", href: "/founders/finance/reports" }
+      { name: "Financial Overview", href: "/admin/finance/overview" },
+      { name: "Cashfree Transactions", href: "/admin/payments", badge: "PROD" },
+      { name: "Invoices & Records", href: "/admin/finance/invoices" },
+      { name: "Partnerships & Sponsors", href: "/admin/finance/partnerships" },
+      { name: "Reports & Analytics", href: "/admin/finance/reports" }
     ]
   },
   {
@@ -136,9 +136,9 @@ const founderNavSections: FounderNavSection[] = [
     title: "COMMUNITY",
     icon: MessageSquare,
     items: [
-      { name: "Discussions & Submissions", href: "/founders/community/submissions" },
-      { name: "Reports & Moderation", href: "/founders/community/moderation" },
-      { name: "Community Engagement", href: "/founders/community/engagement" }
+      { name: "Discussions & Submissions", href: "/admin/community/submissions" },
+      { name: "Reports & Moderation", href: "/admin/community/moderation" },
+      { name: "Community Engagement", href: "/admin/community/engagement" }
     ]
   },
   {
@@ -147,11 +147,11 @@ const founderNavSections: FounderNavSection[] = [
     title: "WEBSITE CONTROL",
     icon: Sliders,
     items: [
-      { name: "Module Manager & Toggles", href: "/founders/website/modules" },
-      { name: "Homepage Builder", href: "/founders/website/homepage" },
-      { name: "Site Configuration", href: "/founders/website/config" },
-      { name: "Feature Controls", href: "/founders/website/features" },
-      { name: "Branding & Appearance", href: "/founders/website/branding" }
+      { name: "Module Manager & Toggles", href: "/admin/website/modules" },
+      { name: "Homepage Builder", href: "/admin/website/homepage" },
+      { name: "Site Configuration", href: "/admin/website/config" },
+      { name: "Feature Controls", href: "/admin/website/features" },
+      { name: "Branding & Appearance", href: "/admin/website/branding" }
     ]
   },
   {
@@ -160,11 +160,11 @@ const founderNavSections: FounderNavSection[] = [
     title: "SYSTEM & SECURITY",
     icon: Zap,
     items: [
-      { name: "System Health & Pulse", href: "/founders/system/health" },
-      { name: "Database & Backups", href: "/founders/system/database" },
-      { name: "Integrations & APIs", href: "/founders/system/integrations" },
-      { name: "Founder Activity Ledger", href: "/founders/system/audit-logs" },
-      { name: "Security Centre", href: "/founders/system/security" }
+      { name: "System Health & Pulse", href: "/admin/system/health" },
+      { name: "Database & Backups", href: "/admin/system/database" },
+      { name: "Integrations & APIs", href: "/admin/system/integrations" },
+      { name: "Founder Activity Ledger", href: "/admin/system/audit-logs" },
+      { name: "Security Centre", href: "/admin/system/security" }
     ]
   },
   {
@@ -173,10 +173,10 @@ const founderNavSections: FounderNavSection[] = [
     title: "FOUNDER SETTINGS",
     icon: Settings,
     items: [
-      { name: "Global Settings", href: "/founders/settings" },
-      { name: "Automation Studio", href: "/founders/automation", badge: "AUTONOMOUS" },
-      { name: "Change History", href: "/founders/changelog" },
-      { name: "Founder Profile", href: "/founders/profile" }
+      { name: "Global Settings", href: "/admin/settings" },
+      { name: "Automation Studio", href: "/admin/founders/automation", badge: "AUTONOMOUS" },
+      { name: "Change History", href: "/admin/founders/changelog" },
+      { name: "Founder Profile", href: "/admin/founders/profile" }
     ]
   }
 ];

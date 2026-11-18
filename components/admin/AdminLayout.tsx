@@ -117,7 +117,7 @@ const operationalSections: OperationalSection[] = [
     items: [
       { name: "Page Manager", href: "/admin/content/pages" },
       { name: "Articles & Publications", href: "/admin/content/articles" },
-      { name: "Announcements", href: "/admin/content/announcements" },
+      { name: "Announcements", href: "/admin/communications/announcements" },
       { name: "Media Library", href: "/admin/content/media" },
       { name: "Document Manager", href: "/admin/content/documents" },
       { name: "Navigation Manager", href: "/admin/content/navigation" }
