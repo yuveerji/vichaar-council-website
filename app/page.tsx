@@ -146,7 +146,7 @@ export default async function HomePage() {
                 href="/events"
                 className="inline-flex items-center justify-center gap-3 border border-citrus bg-citrus px-6 sm:px-8 py-3.5 text-xs font-display font-bold tracking-[0.18em] text-ink transition-all duration-300 hover:scale-[1.03] hover:border-gelato hover:bg-gelato hover:shadow-[0_0_25px_rgba(255,166,43,0.45)] active:scale-[0.98] uppercase rounded-xs shadow-gold group w-full sm:w-auto text-center"
               >
-                <span>EXPLORE EVENTS</span>
+                <span>EXPLORE OUR EVENTS</span>
                 <span className="transition-transform duration-200 group-hover:translate-x-1">&gt;</span>
               </Link>
               <Link
